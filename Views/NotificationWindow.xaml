@@ -1,0 +1,46 @@
+<Window x:Class="AirGestureAI.Views.NotificationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AirGesture Notification"
+        Width="320" Height="90"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI">
+
+    <Border x:Name="RootBorder" CornerRadius="8" Background="#EE0F0F25"
+            BorderBrush="#FF7B61FF" BorderThickness="1.5"
+            Padding="14,10" Margin="4">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.4" Color="Black"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="40"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="20"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Icon -->
+            <TextBlock x:Name="IconText" Grid.Column="0" Text="ℹ️" FontSize="24"
+                       VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+            <!-- Content -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                <TextBlock x:Name="TitleText" Text="Notification Title" FontWeight="Bold"
+                           Foreground="White" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="MessageText" Text="Detail description message goes here."
+                           Foreground="#FFCCCCCC" FontSize="11" TextWrapping="Wrap" MaxHeight="40"
+                           TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <!-- Close btn -->
+            <Button Grid.Column="2" Content="✕" Foreground="#FF8888AA" Background="Transparent"
+                    BorderThickness="0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Right"
+                    FontSize="10" Click="CloseClick"/>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,51 @@
+name: AirGesture AI Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. 4.1.0)'
+        required: true
+        default: '4.1.0'
+
+jobs:
+  build-and-release:
+    name: Build, Test, Package & Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8.0 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore AirGestureAI.csproj
+
+      - name: Build Solution (Release)
+        run: dotnet build AirGestureAI.csproj --configuration Release --no-restore
+
+      - name: Run Test Suite
+        run: dotnet test Tests/AirGestureAI.Tests.csproj --configuration Release
+
+      - name: Publish Binaries (win-x64)
+        run: dotnet publish AirGestureAI.csproj --configuration Release --runtime win-x64 --self-contained false -o bin/Release/net8.0-windows/win-x64/publish
+
+      - name: Execute Master Build & Packaging Script
+        shell: powershell
+        run: |
+          .\Build\BuildRelease.ps1 -Configuration Release -RuntimeIdentifier win-x64
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirGestureAI-4.1.0-Release-Dist
+          path: dist/*

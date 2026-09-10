@@ -1,0 +1,196 @@
+<UserControl x:Class="AirGestureAI.Views.GestureManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#FF1A1A2E"
+             Foreground="White"
+             FontFamily="Segoe UI">
+    <UserControl.Resources>
+        <!-- Profile list item style -->
+        <Style x:Key="ProfileItem" TargetType="ListBoxItem">
+            <Setter Property="Background"   Value="Transparent"/>
+            <Setter Property="Foreground"   Value="#FFCCCCEE"/>
+            <Setter Property="Padding"      Value="12 8"/>
+            <Setter Property="Cursor"       Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#FF2A2A5A"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FF22224A"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Toolbar button -->
+        <Style x:Key="TbBtn" TargetType="Button">
+            <Setter Property="Background"      Value="#FF2A2A4A"/>
+            <Setter Property="Foreground"      Value="#FFCCCCEE"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="12 6"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Margin"          Value="0 0 6 0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF3A3A6A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Toggle switch style -->
+        <Style x:Key="ToggleBtn" TargetType="CheckBox">
+            <Setter Property="Foreground"   Value="#FFCCCCEE"/>
+            <Setter Property="FontSize"     Value="13"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>   <!-- Profile list -->
+            <ColumnDefinition Width="*"/>     <!-- Binding editor -->
+        </Grid.ColumnDefinitions>
+
+        <!-- ── Left: Profile list ─────────────────────────────────────────── -->
+        <Border Grid.Column="0" Background="#FF141428" BorderBrush="#FF2A2A4A" BorderThickness="0 0 1 0">
+            <DockPanel>
+                <!-- Profile toolbar -->
+                <Border DockPanel.Dock="Top" Padding="8" Background="#FF0F0F20">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="＋ New"    Command="{Binding NewProfileCommand}"    Style="{StaticResource TbBtn}"/>
+                        <Button Content="↑ Import"  Command="{Binding ImportCommand}"         Style="{StaticResource TbBtn}"/>
+                        <Button Content="🗑 Delete"  Command="{Binding DeleteProfileCommand}"  Style="{StaticResource TbBtn}"/>
+                    </StackPanel>
+                </Border>
+                <!-- Profile items -->
+                <ListBox ItemsSource="{Binding Profiles}"
+                         SelectedItem="{Binding SelectedProfile}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ItemContainerStyle="{StaticResource ProfileItem}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📋 " FontSize="14"/>
+                                <TextBlock Text="{Binding Name}" FontSize="13"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ── Right: Binding editor ──────────────────────────────────────── -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>  <!-- Toolbar -->
+                <RowDefinition Height="*"/>     <!-- Binding list -->
+                <RowDefinition Height="Auto"/>  <!-- Detail editor -->
+                <RowDefinition Height="Auto"/>  <!-- Status bar -->
+            </Grid.RowDefinitions>
+
+            <!-- Toolbar -->
+            <Border Grid.Row="0" Background="#FF0F0F20" Padding="16 10">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="💾 Save"         Command="{Binding SaveCommand}"          Style="{StaticResource TbBtn}"/>
+                    <Button Content="↩ Reset Defaults" Command="{Binding ResetDefaultsCommand}" Style="{StaticResource TbBtn}"/>
+                    <Button Content="↓ Export"         Command="{Binding ExportCommand}"        Style="{StaticResource TbBtn}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Gesture binding list -->
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding Bindings}"
+                      SelectedItem="{Binding SelectedBinding}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      Background="#FF1A1A2E"
+                      Foreground="#FFCCCCEE"
+                      BorderThickness="0"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#FF2A2A4A"
+                      RowBackground="#FF1A1A2E"
+                      AlternatingRowBackground="#FF1E1E38"
+                      SelectionMode="Single"
+                      Margin="0">
+                <DataGrid.ColumnHeaderStyle>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background"   Value="#FF141428"/>
+                        <Setter Property="Foreground"   Value="#FF9999BB"/>
+                        <Setter Property="Padding"      Value="12 8"/>
+                        <Setter Property="BorderBrush"  Value="#FF2A2A4A"/>
+                        <Setter Property="BorderThickness" Value="0 0 0 1"/>
+                        <Setter Property="FontWeight"   Value="SemiBold"/>
+                    </Style>
+                </DataGrid.ColumnHeaderStyle>
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding"         Value="8 4"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FF2A2A5A"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Icon"      Binding="{Binding GestureIcon}"  Width="60"  IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Gesture"   Binding="{Binding GestureName}"  Width="130" IsReadOnly="True"/>
+                    <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding IsEnabled}"  Width="80"/>
+                    <DataGridTextColumn Header="Sensitivity" Binding="{Binding Sensitivity, StringFormat={}{0:F1}}" Width="100"/>
+                    <DataGridTextColumn Header="Action"    Binding="{Binding ActionDisplay}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Detail editor for selected binding -->
+            <Border Grid.Row="2" Background="#FF141428" Padding="16 12" Margin="0 1 0 0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0 0 16 0">
+                        <TextBlock Text="Selected Gesture" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 4"/>
+                        <TextBlock Text="{Binding SelectedBinding.GestureName, FallbackValue='—'}"
+                                   Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0 0 16 0">
+                        <TextBlock Text="Sensitivity" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 4"/>
+                        <Slider Value="{Binding SelectedBinding.Sensitivity, FallbackValue=1.0}"
+                                Minimum="0.1" Maximum="2.0" TickFrequency="0.1"
+                                IsSnapToTickEnabled="True"
+                                Foreground="#FF7B61FF"/>
+                        <TextBlock Text="{Binding SelectedBinding.Sensitivity, StringFormat={}{0:F1}, FallbackValue='—'}"
+                                   Foreground="#FF9999BB" FontSize="11"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Action Parameter" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 4"/>
+                        <TextBox Text="{Binding SelectedBinding.ActionDisplay, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="#FF1A1A2E" Foreground="#FFCCCCEE"
+                                 BorderBrush="#FF3A3A6A" BorderThickness="1"
+                                 Padding="6 4"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Status bar -->
+            <Border Grid.Row="3" Background="#FF0F0F20" Padding="16 6">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#FF666688" FontSize="11"/>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

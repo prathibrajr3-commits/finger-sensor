@@ -1,0 +1,77 @@
+<Window x:Class="AirGestureAI.Cursor.CursorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AirGestureAI_CursorOverlay"
+        Width="60" Height="60"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        IsHitTestVisible="False"
+        Opacity="0"
+        WindowStartupLocation="Manual"
+        Left="-200" Top="-200"
+        SizeToContent="Manual"
+        ResizeMode="NoResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <!-- Root canvas provides 10px padding on each side for the drop shadow to render cleanly -->
+    <Canvas Width="60" Height="60" Background="Transparent">
+
+        <!-- Drop shadow layer rendered below the cursor ellipse -->
+        <Ellipse x:Name="CursorShadow"
+                 Width="40" Height="40"
+                 Canvas.Left="10" Canvas.Top="10"
+                 Fill="Transparent"
+                 StrokeThickness="0">
+            <Ellipse.Effect>
+                <DropShadowEffect x:Name="ShadowEffect"
+                                  Color="#1A6BD9"
+                                  BlurRadius="14"
+                                  ShadowDepth="0"
+                                  Opacity="0.65"
+                                  RenderingBias="Quality"/>
+            </Ellipse.Effect>
+        </Ellipse>
+
+        <!-- Main cursor ellipse -->
+        <Ellipse x:Name="CursorEllipse"
+                 Width="40" Height="40"
+                 Canvas.Left="10" Canvas.Top="10"
+                 StrokeThickness="2.5">
+
+            <!-- Blue radial gradient fill — center is lighter, edge is semi-transparent deep blue -->
+            <Ellipse.Fill>
+                <RadialGradientBrush x:Name="CursorFillBrush"
+                                     GradientOrigin="0.5,0.35"
+                                     Center="0.5,0.5"
+                                     RadiusX="0.5" RadiusY="0.5">
+                    <GradientStop x:Name="FillGradientCenter" Color="#660D6EFD" Offset="0.0"/>
+                    <GradientStop x:Name="FillGradientEdge"   Color="#220A4FC4" Offset="1.0"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+
+            <!-- Crisp blue stroke -->
+            <Ellipse.Stroke>
+                <SolidColorBrush x:Name="CursorStrokeBrush" Color="#0D6EFD"/>
+            </Ellipse.Stroke>
+
+        </Ellipse>
+
+        <!-- Inner highlight dot for depth/polish -->
+        <Ellipse x:Name="CursorHighlight"
+                 Width="8" Height="8"
+                 Canvas.Left="21" Canvas.Top="16"
+                 IsHitTestVisible="False">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#99FFFFFF" Offset="0.0"/>
+                    <GradientStop Color="#00FFFFFF" Offset="1.0"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+    </Canvas>
+</Window>

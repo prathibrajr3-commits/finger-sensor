@@ -1,0 +1,268 @@
+<UserControl x:Class="AirGestureAI.Views.PerformanceDashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:AirGestureAI.Views"
+             Background="#FF1A1A2E"
+             Foreground="White"
+             FontFamily="Segoe UI">
+    <UserControl.Resources>
+        <local:NormaliseConverter x:Key="NormaliseConverter"/>
+        <!-- KPI card style -->
+        <Style x:Key="KpiCard" TargetType="Border">
+            <Setter Property="Background"     Value="#FF141428"/>
+            <Setter Property="CornerRadius"   Value="10"/>
+            <Setter Property="Padding"        Value="20 16"/>
+            <Setter Property="Margin"         Value="0 0 12 0"/>
+        </Style>
+        <!-- KPI value text -->
+        <Style x:Key="KpiValue" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="28"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <!-- KPI label -->
+        <Style x:Key="KpiLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="#FF9999BB"/>
+            <Setter Property="Margin"     Value="0 4 0 0"/>
+        </Style>
+        <!-- Mini chart bar item -->
+        <DataTemplate x:Key="BarItem">
+            <Rectangle Width="6" Margin="1 0" Fill="#FF7B61FF" VerticalAlignment="Bottom"
+                       Height="{Binding Value, Converter={StaticResource NormaliseConverter}, ConverterParameter=100}"/>
+        </DataTemplate>
+        <!-- Toolbar button -->
+        <Style x:Key="TbBtn" TargetType="Button">
+            <Setter Property="Background"      Value="#FF2A2A4A"/>
+            <Setter Property="Foreground"      Value="#FFCCCCEE"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="10 6"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Margin"          Value="0 0 6 0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF3A3A6A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Toolbar -->
+            <RowDefinition Height="Auto"/>  <!-- KPI row -->
+            <RowDefinition Height="*"/>     <!-- Charts -->
+            <RowDefinition Height="Auto"/>  <!-- Status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Toolbar ─────────────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="#FF0F0F20" Padding="16 10">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="▶ Start"  Command="{Binding StartCommand}" Style="{StaticResource TbBtn}"/>
+                <Button Content="⏸ Pause"  Command="{Binding StopCommand}"  Style="{StaticResource TbBtn}"/>
+                <Button Content="✕ Clear"  Command="{Binding ClearCommand}" Style="{StaticResource TbBtn}"/>
+                <TextBlock Text="{Binding IsMonitoring, StringFormat='● Live', FallbackValue='● Paused'}"
+                           VerticalAlignment="Center" Margin="12 0 0 0" FontSize="12">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#FF26DE81"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMonitoring}" Value="False">
+                                    <Setter Property="Foreground" Value="#FFFF6B6B"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- ── KPI Row ─────────────────────────────────────────────────────── -->
+        <Grid Grid.Row="1" Margin="16 16 16 0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- FPS -->
+            <Border Grid.Column="0" Style="{StaticResource KpiCard}">
+                <StackPanel>
+                    <TextBlock Text="🎞️ FPS" Foreground="#FF9999BB" FontSize="12"/>
+                    <TextBlock Text="{Binding FpsDisplay}" Style="{StaticResource KpiValue}" Foreground="#FF7B61FF"/>
+                    <TextBlock Style="{StaticResource KpiLabel}">
+                        <Run Text="Peak: "/>
+                        <Run Text="{Binding PeakFps, StringFormat={}{0:F1}}"/>
+                        <Run Text=" fps"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- Latency -->
+            <Border Grid.Column="1" Style="{StaticResource KpiCard}">
+                <StackPanel>
+                    <TextBlock Text="⚡ Latency" Foreground="#FF9999BB" FontSize="12"/>
+                    <TextBlock Text="{Binding LatencyDisplay}" Style="{StaticResource KpiValue}" Foreground="#FF2AB7CA"/>
+                    <TextBlock Style="{StaticResource KpiLabel}">
+                        <Run Text="Avg: "/>
+                        <Run Text="{Binding AvgLatencyMs, StringFormat={}{0:F1}}"/>
+                        <Run Text=" ms"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- CPU -->
+            <Border Grid.Column="2" Style="{StaticResource KpiCard}">
+                <StackPanel>
+                    <TextBlock Text="🖥️ CPU" Foreground="#FF9999BB" FontSize="12"/>
+                    <TextBlock Text="{Binding CpuDisplay}" Style="{StaticResource KpiValue}" Foreground="#FFFF9F43"/>
+                    <ProgressBar Value="{Binding CurrentCpuPercent}" Maximum="100"
+                                 Height="4" Margin="0 6 0 0"
+                                 Background="#FF2A2A4A" Foreground="#FFFF9F43"
+                                 BorderThickness="0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Memory -->
+            <Border Grid.Column="3" Style="{StaticResource KpiCard}" Margin="0">
+                <StackPanel>
+                    <TextBlock Text="💾 Memory" Foreground="#FF9999BB" FontSize="12"/>
+                    <TextBlock Text="{Binding MemDisplay}" Style="{StaticResource KpiValue}" Foreground="#FF26DE81"/>
+                    <TextBlock Style="{StaticResource KpiLabel}" Text="Working set"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ── Charts ──────────────────────────────────────────────────────── -->
+        <Grid Grid.Row="2" Margin="16 12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- FPS chart -->
+            <Border Grid.Row="0" Grid.Column="0" Background="#FF141428" CornerRadius="8" Margin="0 0 8 8" Padding="16 12">
+                <StackPanel>
+                    <TextBlock Text="Frame Rate (fps)" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 8"/>
+                    <ItemsControl ItemsSource="{Binding FpsSamples}" Height="80">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Rectangle Width="8" Margin="1 0" VerticalAlignment="Bottom" Fill="#FF7B61FF">
+                                    <Rectangle.Height>
+                                        <Binding Path="Value" Converter="{StaticResource NormaliseConverter}"
+                                                 ConverterParameter="60"/>
+                                    </Rectangle.Height>
+                                </Rectangle>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Latency chart -->
+            <Border Grid.Row="0" Grid.Column="1" Background="#FF141428" CornerRadius="8" Margin="8 0 0 8" Padding="16 12">
+                <StackPanel>
+                    <TextBlock Text="Pipeline Latency (ms)" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 8"/>
+                    <ItemsControl ItemsSource="{Binding LatencySamples}" Height="80">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Rectangle Width="8" Margin="1 0" VerticalAlignment="Bottom" Fill="#FF2AB7CA">
+                                    <Rectangle.Height>
+                                        <Binding Path="Value" Converter="{StaticResource NormaliseConverter}"
+                                                 ConverterParameter="100"/>
+                                    </Rectangle.Height>
+                                </Rectangle>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- CPU chart -->
+            <Border Grid.Row="1" Grid.Column="0" Background="#FF141428" CornerRadius="8" Margin="0 8 8 0" Padding="16 12">
+                <StackPanel>
+                    <TextBlock Text="CPU Usage (%)" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 8"/>
+                    <ItemsControl ItemsSource="{Binding CpuSamples}" Height="80">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Rectangle Width="8" Margin="1 0" VerticalAlignment="Bottom" Fill="#FFFF9F43">
+                                    <Rectangle.Height>
+                                        <Binding Path="Value" Converter="{StaticResource NormaliseConverter}"
+                                                 ConverterParameter="100"/>
+                                    </Rectangle.Height>
+                                </Rectangle>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Memory chart -->
+            <Border Grid.Row="1" Grid.Column="1" Background="#FF141428" CornerRadius="8" Margin="8 8 0 0" Padding="16 12">
+                <StackPanel>
+                    <TextBlock Text="Memory (MB)" Foreground="#FF9999BB" FontSize="11" Margin="0 0 0 8"/>
+                    <ItemsControl ItemsSource="{Binding MemSamples}" Height="80">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Rectangle Width="8" Margin="1 0" VerticalAlignment="Bottom" Fill="#FF26DE81">
+                                    <Rectangle.Height>
+                                        <Binding Path="Value" Converter="{StaticResource NormaliseConverter}"
+                                                 ConverterParameter="1000"/>
+                                    </Rectangle.Height>
+                                </Rectangle>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ── Status bar ───────────────────────────────────────────────────── -->
+        <Border Grid.Row="3" Background="#FF0F0F20" Padding="16 6">
+            <Grid>
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#FF666688" FontSize="11"/>
+                <TextBlock HorizontalAlignment="Right" Foreground="#FF444466" FontSize="11">
+                    <Run Text="{Binding FpsSamples.Count, StringFormat={}{0} samples}"/>
+                </TextBlock>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

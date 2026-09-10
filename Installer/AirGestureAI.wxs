@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" 
+           Name="AirGesture AI 4.1.0" 
+           Language="1033" 
+           Version="4.1.0.0" 
+           Manufacturer="AirGesture AI Team" 
+           UpgradeCode="8B42478D-59A6-4A9B-B12A-6A38F3B3A710">
+
+    <Package InstallerVersion="500" 
+             Compressed="yes" 
+             InstallScope="perMachine" 
+             Comments="AirGesture AI 4.1.0 RTM Installer" 
+             Description="AirGesture AI Virtual Cursor &amp; Gesture Control Center" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." 
+                  Schedule="afterInstallInitialize" 
+                  AllowSameVersionUpgrades="yes" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Add/Remove Programs Metadata -->
+    <Property Id="ARPCOMMENTS" Value="AirGesture AI 4.1.0 RTM Desktop Control Center" />
+    <Property Id="ARPCONTACT" Value="AirGesture AI Support" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/AirGestureAI/AirGestureAI" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/AirGestureAI/AirGestureAI" />
+    <Property Id="ARPNOREPAIR" Value="0" />
+
+    <!-- Optional Desktop Shortcut Property -->
+    <Property Id="CREATEDESKTOPSHORTCUT" Value="1" />
+
+    <!-- Directory Structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="AirGestureAI">
+          <Directory Id="HandTrackingFolder" Name="HandTracking" />
+          <Directory Id="PluginsFolder" Name="Plugins" />
+          <Directory Id="DocsFolder" Name="Docs" />
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu Programs Folder -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="AirGesture AI" />
+      </Directory>
+
+      <!-- Desktop Folder -->
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <!-- Component Group -->
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="7F903B4C-1A63-4C18-912E-47F6A28D98C1">
+        <File Id="AirGestureAI.exe" Source="$(var.SourceDir)\AirGestureAI.exe" KeyPath="yes" />
+        
+        <!-- Start Menu Shortcut -->
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Directory="ApplicationProgramsFolder"
+                  Name="AirGesture AI"
+                  Description="AirGesture AI Gesture Control Center"
+                  WorkingDirectory="INSTALLFOLDER"
+                  IconIndex="0"
+                  Advertise="no" />
+
+        <!-- Uninstall Shortcut -->
+        <Shortcut Id="UninstallProductShortcut"
+                  Directory="ApplicationProgramsFolder"
+                  Name="Uninstall AirGesture AI"
+                  Target="[System64Folder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Description="Uninstalls AirGesture AI" />
+
+        <RemoveFolder Id="CleanUpShortcuts" Directory="ApplicationProgramsFolder" On="uninstall" />
+      </Component>
+
+      <!-- Optional Desktop Shortcut Component -->
+      <Component Id="DesktopShortcutComponent" Guid="E2A8F369-BD14-41A8-8A33-87B19DF4A211">
+        <Condition>CREATEDESKTOPSHORTCUT = 1</Condition>
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Directory="DesktopFolder"
+                  Name="AirGesture AI"
+                  Target="[INSTALLFOLDER]AirGestureAI.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Description="AirGesture AI Gesture Control Center" />
+        <RegistryValue Root="HKCU" Key="Software\AirGestureAI" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="AppConfigFile" Guid="A3815D82-2C9A-4E38-B581-9988C50DF2B1">
+        <File Id="AppConfig.json" Source="$(var.SourceDir)\AppConfig.json" KeyPath="yes" />
+      </Component>
+
+      <Component Id="LicenseFile" Guid="C19F3A4B-D295-46B9-A874-9A2E80D819AA">
+        <File Id="LICENSE.md" Source="$(var.SourceDir)\LICENSE.md" KeyPath="yes" />
+      </Component>
+
+      <Component Id="NoticeFile" Guid="8712C450-7FBB-4859-9E01-FA498E3A981B">
+        <File Id="THIRD_PARTY_NOTICES.md" Source="$(var.SourceDir)\THIRD_PARTY_NOTICES.md" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Features -->
+    <Feature Id="ProductFeature" Title="AirGesture AI Application" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+  </Product>
+</Wix>
