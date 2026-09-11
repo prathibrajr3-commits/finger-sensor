@@ -15,6 +15,21 @@ namespace AirGestureAI.Input
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
+
         private const int INPUT_MOUSE = 0;
         private const int INPUT_KEYBOARD = 1;
 
@@ -22,6 +37,34 @@ namespace AirGestureAI.Input
         private const uint KEYEVENTF_KEYUP = 0x0002;
         private const ushort VK_SPACE = 0x20;
         private const int WHEEL_DELTA = 120;
+
+        private const uint WM_MOUSEWHEEL = 0x020A;
+        private const uint WM_VSCROLL = 0x0115;
+        private static readonly IntPtr SB_LINEUP = IntPtr.Zero;
+        private static readonly IntPtr SB_LINEDOWN = (IntPtr)1;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct GUITHREADINFO
+        {
+            public int cbSize;
+            public int flags;
+            public IntPtr hwndActive;
+            public IntPtr hwndFocus;
+            public IntPtr hwndCapture;
+            public IntPtr hwndMenuOwner;
+            public IntPtr hwndMoveSize;
+            public IntPtr hwndCaret;
+            public RECT rcCaret;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct INPUT
@@ -70,6 +113,13 @@ namespace AirGestureAI.Input
             public ushort wParamH;
         }
 
+        // ── Diagnostics & Telemetry Hook ──────────────────────────────────────
+        /// <summary>
+        /// Occurs when a scroll action is dispatched (delta = +120 for up, -120 for down).
+        /// Used by unit tests and telemetry verification.
+        /// </summary>
+        public event Action<int>? ScrollDispatched;
+
         // ── Debounce and State Guards ─────────────────────────────────────────
         private DateTime _lastScrollTime = DateTime.MinValue;
         private DateTime _lastSpaceTime = DateTime.MinValue;
@@ -93,24 +143,8 @@ namespace AirGestureAI.Input
             }
 
             Logger.Info("Simulating Windows Input: Scroll Up");
-
-            INPUT[] inputs = new INPUT[1];
-            inputs[0] = new INPUT
-            {
-                type = INPUT_MOUSE,
-                U = new InputUnion
-                {
-                    mi = new MOUSEINPUT
-                    {
-                        dwFlags = MOUSEEVENTF_WHEEL,
-                        mouseData = (uint)WHEEL_DELTA,
-                        time = 0,
-                        dwExtraInfo = IntPtr.Zero
-                    }
-                }
-            };
-
-            SendInputWithVerification(inputs);
+            DispatchScroll(WHEEL_DELTA);
+            ScrollDispatched?.Invoke(WHEEL_DELTA);
         }
 
         /// <inheritdoc/>
@@ -126,7 +160,18 @@ namespace AirGestureAI.Input
             }
 
             Logger.Info("Simulating Windows Input: Scroll Down");
+            DispatchScroll(-WHEEL_DELTA);
+            ScrollDispatched?.Invoke(-WHEEL_DELTA);
+        }
 
+        /// <summary>
+        /// Dispatches a scroll action using SendInput and targets the foreground window's
+        /// focused control so the intended application receives the wheel event regardless
+        /// of physical cursor parking.
+        /// </summary>
+        private void DispatchScroll(int delta)
+        {
+            // 1. Native hardware-level mouse wheel event via SendInput
             INPUT[] inputs = new INPUT[1];
             inputs[0] = new INPUT
             {
@@ -136,8 +181,7 @@ namespace AirGestureAI.Input
                     mi = new MOUSEINPUT
                     {
                         dwFlags = MOUSEEVENTF_WHEEL,
-                        // Cast negative delta to uint (unchecked) to represent negative scroll direction
-                        mouseData = unchecked((uint)(-WHEEL_DELTA)),
+                        mouseData = unchecked((uint)delta),
                         time = 0,
                         dwExtraInfo = IntPtr.Zero
                     }
@@ -145,6 +189,52 @@ namespace AirGestureAI.Input
             };
 
             SendInputWithVerification(inputs);
+
+            // 2. Direct message routing to foreground window / focused control
+            try
+            {
+                IntPtr fgHwnd = GetForegroundWindow();
+                if (fgHwnd != IntPtr.Zero)
+                {
+                    uint threadId = GetWindowThreadProcessId(fgHwnd, out _);
+
+                    IntPtr targetHwnd = fgHwnd;
+                    if (threadId != 0)
+                    {
+                        var gui = new GUITHREADINFO();
+                        gui.cbSize = Marshal.SizeOf(typeof(GUITHREADINFO));
+                        if (GetGUIThreadInfo(threadId, ref gui) && gui.hwndFocus != IntPtr.Zero)
+                        {
+                            targetHwnd = gui.hwndFocus;
+                        }
+                    }
+
+                    if (GetWindowRect(targetHwnd, out RECT rc))
+                    {
+                        int centerX = rc.Left + (rc.Right - rc.Left) / 2;
+                        int centerY = rc.Top + (rc.Bottom - rc.Top) / 2;
+                        IntPtr lParam = (IntPtr)((centerY << 16) | (centerX & 0xFFFF));
+                        IntPtr wParam = (IntPtr)((delta << 16) & 0xFFFF0000);
+
+                        PostMessage(targetHwnd, WM_MOUSEWHEEL, wParam, lParam);
+                        if (targetHwnd != fgHwnd)
+                        {
+                            PostMessage(fgHwnd, WM_MOUSEWHEEL, wParam, lParam);
+                        }
+
+                        IntPtr vscrollCmd = delta > 0 ? SB_LINEUP : SB_LINEDOWN;
+                        PostMessage(targetHwnd, WM_VSCROLL, vscrollCmd, IntPtr.Zero);
+                        if (targetHwnd != fgHwnd)
+                        {
+                            PostMessage(fgHwnd, WM_VSCROLL, vscrollCmd, IntPtr.Zero);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Exception while routing scroll message to foreground window", ex);
+            }
         }
 
         /// <inheritdoc/>
