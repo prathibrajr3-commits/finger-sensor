@@ -186,9 +186,9 @@
             <Grid>
                 <TextBlock Text="{Binding StatusMessage}" Foreground="#FF666688" FontSize="11"/>
                 <TextBlock HorizontalAlignment="Right" Foreground="#FF444466" FontSize="11">
-                    <Run Text="{Binding Nodes.Count, StringFormat={}{0} nodes}"/>
+                    <Run Text="{Binding Nodes.Count, Mode=OneWay, StringFormat={}{0} nodes}"/>
                     <Run Text=" | "/>
-                    <Run Text="{Binding Connections.Count, StringFormat={}{0} connections}"/>
+                    <Run Text="{Binding Connections.Count, Mode=OneWay, StringFormat={}{0} connections}"/>
                 </TextBlock>
             </Grid>
         </Border>

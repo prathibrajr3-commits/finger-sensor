@@ -183,6 +183,9 @@ namespace AirGestureAI
             // Run MainWindow
             try
             {
+                // Explicit shutdown control prevents premature exit during wizard/startup transition
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
                 var wizardService = _serviceProvider.GetRequiredService<SetupWizardService>();
                 if (wizardService.IsFirstRun)
                 {
@@ -202,12 +205,18 @@ namespace AirGestureAI
                 swWindow.Stop();
                 startupProfiler.RecordMainWindowCreation(swWindow.ElapsedMilliseconds);
 
+                // Assign MainWindow
+                MainWindow = mainWindow;
+
                 // Show MainWindow
                 var swShow = Stopwatch.StartNew();
                 mainWindow.Show();
                 swShow.Stop();
                 startupProfiler.RecordUiShown(swShow.ElapsedMilliseconds);
                 Logger.Info("MainWindow shown successfully.");
+
+                // After MainWindow is successfully shown, configure normal shutdown behavior
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
 
                 // Defer heavy initializations to background execution
                 optimizer.ScheduleBackgroundTask(async (ct) =>
@@ -272,8 +281,10 @@ namespace AirGestureAI
             services.AddSingleton<AirGestureAI.Services.LoggingService>(loggingService);
             services.AddSingleton<AirGestureAI.Services.StartupProfiler>(startupProfiler);
 
-            // Register configuration
-            services.AddSingleton<AppConfig>();
+            // Register configuration (load persisted appsettings.json or use defaults)
+            string configPath = Path.Combine(appDataPath, "appsettings.json");
+            var config = AppConfig.Load(configPath);
+            services.AddSingleton<AppConfig>(config);
 
             // Register utilities and manager
             services.AddSingleton<DependencyManager>();
@@ -491,7 +502,7 @@ namespace AirGestureAI
         {
             Logger.Info("[Shutdown] Application exit sequence initiated.");
 
-            // ── Milestone 5: Graceful Shutdown ────────────────────────────────
+            // Milestone 5: Graceful Shutdown
             // Cancel the app lifetime token to stop AutoSave background loop.
             try { _appLifetimeCts?.Cancel(); } catch { /* best-effort */ }
 
@@ -502,11 +513,12 @@ namespace AirGestureAI
                 if (autoSave != null)
                 {
                     Logger.Info("[Shutdown] Stopping AutoSaveService...");
-                    autoSave.StopAsync().GetAwaiter().GetResult();
-
-                    // Mark dirty and do final save so we don't lose the exit state.
-                    autoSave.MarkDirty();
-                    autoSave.SaveNowAsync().GetAwaiter().GetResult();
+                    Task.Run(async () =>
+                    {
+                        await autoSave.StopAsync().ConfigureAwait(false);
+                        autoSave.MarkDirty();
+                        await autoSave.SaveNowAsync().ConfigureAwait(false);
+                    }).GetAwaiter().GetResult();
                     Logger.Info("[Shutdown] Final session state saved.");
                 }
             }
@@ -521,7 +533,7 @@ namespace AirGestureAI
                 var crashSvc = _serviceProvider?.GetService<CrashRecoveryService>();
                 if (crashSvc != null)
                 {
-                    crashSvc.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    Task.Run(async () => await crashSvc.DisposeAsync().ConfigureAwait(false)).GetAwaiter().GetResult();
                     Logger.Info("[Shutdown] CrashRecoveryService lock file removed (clean exit).");
                 }
             }
@@ -543,12 +555,66 @@ namespace AirGestureAI
 
             _appLifetimeCts?.Dispose();
 
-            if (_serviceProvider is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
+            // Safely dispose DI service provider with async disposal support to prevent InvalidOperationException
+            DisposeServiceProvider(_serviceProvider);
+
             base.OnExit(e);
             Logger.Info("[Shutdown] Application shut down clean.");
+        }
+
+        /// <summary>
+        /// Safely disposes the DI service provider, executing asynchronous disposal
+        /// on a threadpool task to avoid deadlocks with the WPF DispatcherSynchronizationContext,
+        /// and falling back to synchronous IDisposable cleanup.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider to dispose.</param>
+        public static void DisposeServiceProvider(IServiceProvider? serviceProvider)
+        {
+            if (serviceProvider == null) return;
+
+            try
+            {
+                if (serviceProvider is IAsyncDisposable asyncDisposable)
+                {
+                    Task.Run(async () =>
+                    {
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                    }).GetAwaiter().GetResult();
+                }
+                else if (serviceProvider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"[Shutdown] Service provider disposal error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously disposes the DI service provider.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider to dispose.</param>
+        public static async Task DisposeServiceProviderAsync(IServiceProvider? serviceProvider)
+        {
+            if (serviceProvider == null) return;
+
+            try
+            {
+                if (serviceProvider is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (serviceProvider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"[Shutdown] Service provider async disposal error: {ex.Message}");
+            }
         }
     }
 }

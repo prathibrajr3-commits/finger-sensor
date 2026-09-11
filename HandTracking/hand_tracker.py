@@ -33,8 +33,8 @@ def process_frame(width, height, raw_bytes):
     # Reshape raw bytes to image
     img = np.frombuffer(raw_bytes, dtype=np.uint8).reshape((height, width, 3))
     
-    # MediaPipe expects RGB, OpenCV is BGR
-    img_rgb = img[:, :, ::-1] # Quick BGR to RGB channel swap
+    # MediaPipe expects RGB, OpenCV is BGR (ensure C-contiguous array)
+    img_rgb = np.ascontiguousarray(img[:, :, ::-1])
     
     results = hands.process(img_rgb)
     
@@ -67,57 +67,93 @@ def process_frame(width, height, raw_bytes):
         
     return response
 
-# Main loop reading lines from stdin
-while True:
-    try:
-        line = sys.stdin.readline()
-        if not line:
-            break # EOF
-            
-        cmd_line = line.strip()
-        if not cmd_line:
-            continue
-            
-        if cmd_line == "PING":
-            print("PONG", flush=True)
-            continue
-            
-        elif cmd_line == "SHUTDOWN":
-            break
-            
-        elif cmd_line.startswith("FRAME"):
-            # Parse frame header e.g. "FRAME 640 480"
-            parts = cmd_line.split()
-            if len(parts) != 3:
-                response = {"error": "Invalid FRAME command format. Expected 'FRAME width height'"}
+def read_exact(stream, num_bytes):
+    """Reads exactly num_bytes from the binary stream, looping across partial pipe reads."""
+    chunks = []
+    total = 0
+    while total < num_bytes:
+        chunk = stream.read(num_bytes - total)
+        if not chunk:
+            return None  # Premature EOF
+        chunks.append(chunk)
+        total += len(chunk)
+    return b"".join(chunks) if len(chunks) > 1 else chunks[0]
+
+def main():
+    # Use ONE consistent binary reader for all stdin consumption to eliminate buffering desynchronization
+    in_stream = sys.stdin.buffer
+
+    while True:
+        try:
+            # Read command line from the same binary stream
+            raw_line = in_stream.readline()
+            if not raw_line:
+                break  # EOF
+
+            try:
+                cmd_line = raw_line.decode("utf-8").strip()
+            except UnicodeDecodeError:
+                response = {"error": "Malformed command header: invalid UTF-8"}
                 print(json.dumps(response), flush=True)
                 continue
-                
-            width = int(parts[1])
-            height = int(parts[2])
-            expected_bytes = width * height * 3
-            
-            # Read binary payload from stdin buffer
-            raw_bytes = sys.stdin.buffer.read(expected_bytes)
-            
-            if len(raw_bytes) < expected_bytes:
-                response = {"error": "Unexpected EOF reading frame bytes"}
-                print(json.dumps(response), flush=True)
+
+            if not cmd_line:
+                continue
+
+            if cmd_line == "PING":
+                print("PONG", flush=True)
+                continue
+
+            elif cmd_line == "SHUTDOWN":
                 break
-                
-            # Perform tracking
-            try:
-                result = process_frame(width, height, raw_bytes)
-                print(json.dumps(result), flush=True)
-            except Exception as ex:
-                response = {"handDetected": False, "error": f"Inference failed: {str(ex)}"}
+
+            elif cmd_line.startswith("FRAME"):
+                # Parse frame header e.g. "FRAME 640 480"
+                parts = cmd_line.split()
+                if len(parts) != 3:
+                    response = {"error": "Invalid FRAME command format. Expected 'FRAME width height'"}
+                    print(json.dumps(response), flush=True)
+                    continue
+
+                try:
+                    width = int(parts[1])
+                    height = int(parts[2])
+                except ValueError:
+                    response = {"error": "Invalid FRAME dimensions. Expected integers"}
+                    print(json.dumps(response), flush=True)
+                    continue
+
+                if width <= 0 or height <= 0 or width > 8192 or height > 8192:
+                    response = {"error": f"Invalid FRAME dimensions: {width}x{height}"}
+                    print(json.dumps(response), flush=True)
+                    continue
+
+                expected_bytes = width * height * 3
+
+                # Read exact binary payload from in_stream
+                raw_bytes = read_exact(in_stream, expected_bytes)
+
+                if raw_bytes is None or len(raw_bytes) < expected_bytes:
+                    response = {"error": "Unexpected EOF reading frame bytes"}
+                    print(json.dumps(response), flush=True)
+                    break
+
+                # Perform tracking
+                try:
+                    result = process_frame(width, height, raw_bytes)
+                    print(json.dumps(result), flush=True)
+                except Exception as ex:
+                    response = {"handDetected": False, "error": f"Inference failed: {str(ex)}"}
+                    print(json.dumps(response), flush=True)
+
+            else:
+                response = {"error": f"Unknown command: {cmd_line}"}
                 print(json.dumps(response), flush=True)
-                
-        else:
-            response = {"error": f"Unknown command: {cmd_line}"}
-            print(json.dumps(response), flush=True)
-            
-    except Exception as e:
-        sys.stderr.write(f"ERROR: Exception in main loop: {str(e)}\n")
-        sys.stderr.flush()
-        break
+
+        except Exception as e:
+            sys.stderr.write(f"ERROR: Exception in main loop: {str(e)}\n")
+            sys.stderr.flush()
+            break
+
+if __name__ == "__main__":
+    main()

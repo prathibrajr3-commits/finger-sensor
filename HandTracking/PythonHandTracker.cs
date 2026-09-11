@@ -104,7 +104,7 @@ namespace AirGestureAI.HandTracking
                     // Launch python with '-u' (unbuffered stdout/stdin) to eliminate pipeline latency
                     var startInfo = new ProcessStartInfo
                     {
-                        FileName = "python",
+                        FileName = ResolvePythonExecutable(),
                         Arguments = $"-u \"{_scriptPath}\"",
                         RedirectStandardInput = true,
                         RedirectStandardOutput = true,
@@ -414,6 +414,41 @@ namespace AirGestureAI.HandTracking
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// Resolves the Python executable path, prioritizing a local .venv if present,
+        /// and falling back to "python" on the system PATH.
+        /// </summary>
+        public static string ResolvePythonExecutable()
+        {
+            try
+            {
+                string? dir = AppDomain.CurrentDomain.BaseDirectory;
+                while (!string.IsNullOrEmpty(dir))
+                {
+                    string venvPy = Path.Combine(dir, ".venv", "Scripts", "python.exe");
+                    if (File.Exists(venvPy))
+                    {
+                        return Path.GetFullPath(venvPy);
+                    }
+                    var parent = Directory.GetParent(dir);
+                    if (parent == null || parent.FullName == dir) break;
+                    dir = parent.FullName;
+                }
+
+                string cwdPy = Path.Combine(Directory.GetCurrentDirectory(), ".venv", "Scripts", "python.exe");
+                if (File.Exists(cwdPy))
+                {
+                    return Path.GetFullPath(cwdPy);
+                }
+            }
+            catch
+            {
+                // Fall back safely to "python" on any path resolution exception
+            }
+
+            return "python";
         }
 
         /// <summary>

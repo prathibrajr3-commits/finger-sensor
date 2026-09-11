@@ -106,7 +106,7 @@
                     <TextBlock Text="{Binding FpsDisplay}" Style="{StaticResource KpiValue}" Foreground="#FF7B61FF"/>
                     <TextBlock Style="{StaticResource KpiLabel}">
                         <Run Text="Peak: "/>
-                        <Run Text="{Binding PeakFps, StringFormat={}{0:F1}}"/>
+                        <Run Text="{Binding PeakFps, Mode=OneWay, StringFormat={}{0:F1}}"/>
                         <Run Text=" fps"/>
                     </TextBlock>
                 </StackPanel>
@@ -119,7 +119,7 @@
                     <TextBlock Text="{Binding LatencyDisplay}" Style="{StaticResource KpiValue}" Foreground="#FF2AB7CA"/>
                     <TextBlock Style="{StaticResource KpiLabel}">
                         <Run Text="Avg: "/>
-                        <Run Text="{Binding AvgLatencyMs, StringFormat={}{0:F1}}"/>
+                        <Run Text="{Binding AvgLatencyMs, Mode=OneWay, StringFormat={}{0:F1}}"/>
                         <Run Text=" ms"/>
                     </TextBlock>
                 </StackPanel>
@@ -130,7 +130,7 @@
                 <StackPanel>
                     <TextBlock Text="🖥️ CPU" Foreground="#FF9999BB" FontSize="12"/>
                     <TextBlock Text="{Binding CpuDisplay}" Style="{StaticResource KpiValue}" Foreground="#FFFF9F43"/>
-                    <ProgressBar Value="{Binding CurrentCpuPercent}" Maximum="100"
+                    <ProgressBar Value="{Binding CurrentCpuPercent, Mode=OneWay}" Maximum="100"
                                  Height="4" Margin="0 6 0 0"
                                  Background="#FF2A2A4A" Foreground="#FFFF9F43"
                                  BorderThickness="0"/>
@@ -260,7 +260,7 @@
             <Grid>
                 <TextBlock Text="{Binding StatusMessage}" Foreground="#FF666688" FontSize="11"/>
                 <TextBlock HorizontalAlignment="Right" Foreground="#FF444466" FontSize="11">
-                    <Run Text="{Binding FpsSamples.Count, StringFormat={}{0} samples}"/>
+                    <Run Text="{Binding FpsSamples.Count, Mode=OneWay, StringFormat={}{0} samples}"/>
                 </TextBlock>
             </Grid>
         </Border>

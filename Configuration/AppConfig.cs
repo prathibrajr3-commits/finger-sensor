@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using AirGestureAI.Utilities;
+
 namespace AirGestureAI.Configuration
 {
     /// <summary>
@@ -283,5 +289,160 @@ namespace AirGestureAI.Configuration
 
         /// <summary>Gets or sets the list of plugin names that have been disabled by the user.</summary>
         public System.Collections.Generic.List<string> DisabledPlugins { get; set; } = new();
+
+        /// <summary>
+        /// Loads the application configuration from the specified file path,
+        /// falling back to the standard LocalAppData path and BaseDirectory path.
+        /// If the file does not exist or is malformed, returns a default configuration.
+        /// </summary>
+        /// <param name="filePath">Optional explicit path to the configuration file.</param>
+        /// <returns>Loaded or default AppConfig instance.</returns>
+        public static AppConfig Load(string? filePath = null)
+        {
+            string path = filePath ?? GetDefaultConfigPath();
+
+            if (!File.Exists(path))
+            {
+                // Also check application base directory if explicit path was not provided
+                if (filePath == null)
+                {
+                    string fallbackPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+                    if (File.Exists(fallbackPath))
+                    {
+                        path = fallbackPath;
+                    }
+                    else
+                    {
+                        return new AppConfig();
+                    }
+                }
+                else
+                {
+                    return new AppConfig();
+                }
+            }
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    return new AppConfig();
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip
+                };
+
+                AppConfig? config = null;
+                try
+                {
+                    config = JsonSerializer.Deserialize<AppConfig>(json, options);
+                }
+                catch
+                {
+                    config = new AppConfig();
+                }
+
+                config ??= new AppConfig();
+
+                // Specifically inspect JSON to ensure IsFirstRunComplete is preserved whether boolean or string
+                try
+                {
+                    using var doc = JsonDocument.Parse(json);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        if (string.Equals(prop.Name, nameof(IsFirstRunComplete), StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (prop.Value.ValueKind == JsonValueKind.True)
+                            {
+                                config.IsFirstRunComplete = true;
+                            }
+                            else if (prop.Value.ValueKind == JsonValueKind.False)
+                            {
+                                config.IsFirstRunComplete = false;
+                            }
+                            else if (prop.Value.ValueKind == JsonValueKind.String &&
+                                     bool.TryParse(prop.Value.GetString(), out bool parsedBool))
+                            {
+                                config.IsFirstRunComplete = parsedBool;
+                            }
+                            break;
+                        }
+                    }
+                }
+                catch
+                {
+                    // If JsonDocument parsing fails, return config as is
+                }
+
+                return config;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"[AppConfig] Failed to load configuration from '{path}': {ex.Message}. Using defaults.");
+            }
+
+            return new AppConfig();
+        }
+
+        /// <summary>
+        /// Returns the standard path to appsettings.json in LocalAppData.
+        /// </summary>
+        public static string GetDefaultConfigPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "AirGestureAI",
+                "appsettings.json");
+        }
+
+        /// <summary>
+        /// Saves the current configuration to the specified file path, or the default LocalAppData path.
+        /// </summary>
+        /// <param name="filePath">Optional target file path.</param>
+        public void Save(string? filePath = null)
+        {
+            string path = filePath ?? GetDefaultConfigPath();
+            try
+            {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                // Read existing dictionary if file exists to preserve unrecognized or custom keys
+                Dictionary<string, object>? data = null;
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        var raw = File.ReadAllText(path);
+                        if (!string.IsNullOrWhiteSpace(raw))
+                        {
+                            data = JsonSerializer.Deserialize<Dictionary<string, object>>(raw);
+                        }
+                    }
+                    catch
+                    {
+                        data = null;
+                    }
+                }
+
+                data ??= new Dictionary<string, object>();
+                data[nameof(IsFirstRunComplete)] = IsFirstRunComplete;
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                File.WriteAllText(path, JsonSerializer.Serialize(data, options));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[AppConfig] Failed to save configuration to '{path}'", ex);
+            }
+        }
     }
 }

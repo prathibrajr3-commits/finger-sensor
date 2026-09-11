@@ -55,10 +55,11 @@ namespace AirGestureAI.Services
         /// Initializes a new instance of <see cref="SetupWizardService"/>.
         /// </summary>
         /// <param name="config">Application configuration singleton.</param>
-        public SetupWizardService(AppConfig config)
+        /// <param name="settingsPath">Optional explicit settings file path.</param>
+        public SetupWizardService(AppConfig config, string? settingsPath = null)
         {
             _config       = config ?? throw new ArgumentNullException(nameof(config));
-            _settingsPath = Path.Combine(
+            _settingsPath = settingsPath ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "AirGestureAI",
                 SettingsFileName);
@@ -139,7 +140,8 @@ namespace AirGestureAI.Services
         {
             try
             {
-                var psi = new ProcessStartInfo("python", "--version")
+                string pyExe = AirGestureAI.HandTracking.PythonHandTracker.ResolvePythonExecutable();
+                var psi = new ProcessStartInfo(pyExe, "--version")
                 {
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true,
@@ -190,7 +192,8 @@ namespace AirGestureAI.Services
         {
             try
             {
-                var psi = new ProcessStartInfo("python", "-c \"import mediapipe; print(mediapipe.__version__)\"")
+                string pyExe = AirGestureAI.HandTracking.PythonHandTracker.ResolvePythonExecutable();
+                var psi = new ProcessStartInfo(pyExe, "-c \"import mediapipe; print(mediapipe.__version__)\"")
                 {
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true,
@@ -287,17 +290,23 @@ namespace AirGestureAI.Services
                 if (dir is not null) Directory.CreateDirectory(dir);
 
                 // Read existing JSON (if any) and upsert IsFirstRunComplete
-                Dictionary<string, object> data;
+                Dictionary<string, object>? data = null;
                 if (File.Exists(_settingsPath))
                 {
-                    var raw = File.ReadAllText(_settingsPath);
-                    data = JsonSerializer.Deserialize<Dictionary<string, object>>(raw)
-                           ?? new Dictionary<string, object>();
+                    try
+                    {
+                        var raw = File.ReadAllText(_settingsPath);
+                        if (!string.IsNullOrWhiteSpace(raw))
+                        {
+                            data = JsonSerializer.Deserialize<Dictionary<string, object>>(raw);
+                        }
+                    }
+                    catch
+                    {
+                        data = null;
+                    }
                 }
-                else
-                {
-                    data = new Dictionary<string, object>();
-                }
+                data ??= new Dictionary<string, object>();
 
                 data["IsFirstRunComplete"] = true;
                 File.WriteAllText(_settingsPath, JsonSerializer.Serialize(data,

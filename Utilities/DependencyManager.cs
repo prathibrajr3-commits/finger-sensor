@@ -10,7 +10,7 @@ namespace AirGestureAI.Utilities
     /// </summary>
     public class DependencyManager
     {
-        private readonly string _pythonCommand = "python";
+        private readonly string _pythonCommand = AirGestureAI.HandTracking.PythonHandTracker.ResolvePythonExecutable();
 
         /// <summary>
         /// Occurs when a dependency check or install progress log is available.
